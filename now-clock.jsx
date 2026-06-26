@@ -28,21 +28,36 @@ const HANDS = [
 ];
 const TICK_STYLES = ["wood", "soft", "muyu"];
 
+const PERSISTED_KEYS = ["word", "palette", "hand", "tickStyle", "volume", "fontWeight"];
+
 // ─── Persistent settings (localStorage) ──────────────────────────────────────
 function useSettings(defaults) {
   const KEY = "nowclock:v1";
-  const [s, setS] = useState(() => {
+  const load = () => {
     try {
       const raw = localStorage.getItem(KEY);
-      const parsed = raw ? { ...defaults, ...JSON.parse(raw) } : { ...defaults };
-      if (parsed.tickStyle === "crisp") parsed.tickStyle = "muyu"; // migrate old value
-      return parsed;
+      if (!raw) return { ...defaults };
+      const saved = JSON.parse(raw);
+      const next = { ...defaults };
+      for (const k of PERSISTED_KEYS) {
+        if (saved[k] !== undefined) next[k] = saved[k];
+      }
+      if (next.tickStyle === "crisp") next.tickStyle = "muyu"; // migrate old value
+      return next;
     } catch (e) { return { ...defaults }; }
-  });
+  };
+  const persist = (state) => {
+    const out = {};
+    for (const k of PERSISTED_KEYS) {
+      if (state[k] !== undefined) out[k] = state[k];
+    }
+    try { localStorage.setItem(KEY, JSON.stringify(out)); } catch (e) {}
+  };
+  const [s, setS] = useState(load);
   const set = useCallback((k, v) => {
     setS((prev) => {
       const next = (typeof k === "object") ? { ...prev, ...k } : { ...prev, [k]: v };
-      try { localStorage.setItem(KEY, JSON.stringify(next)); } catch (e) {}
+      persist(next);
       return next;
     });
   }, []);
