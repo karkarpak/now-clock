@@ -420,7 +420,9 @@
   .hand-brass  { --hand:#b07a18; }
 
   @media (max-width: 600px) {
-    .word { font-size: clamp(7px, 1.1vmin, 9px); }
+    /* 86vmin leaves 7vmin/side; reclaim half → 93vmin */
+    .stage { width: min(93vmin, 740px); }
+    .word { font-size: clamp(8px, 1.3vmin, 10px); }
   }
 </style>
 </head>

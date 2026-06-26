@@ -64,21 +64,32 @@ function ensureAudio() {
   return _audioCtx;
 }
 
-async function unlockAudio({ style = "wood", volume = 0.001 } = {}) {
+// Must run synchronously inside a user gesture (iOS Safari blocks async unlock).
+function unlockAudio({ style = "wood", volume = 0.35 } = {}) {
   try {
     const ctx = ensureAudio();
     if (!ctx) return null;
-    if (ctx.state === "suspended") await ctx.resume();
-    playTick({ style, volume });
+
+    const silent = ctx.createBuffer(1, 1, ctx.sampleRate);
+    const ping = ctx.createBufferSource();
+    ping.buffer = silent;
+    ping.connect(ctx.destination);
+    ping.start(0);
+
+    if (ctx.state === "suspended") ctx.resume();
+
+    playTick({ style, volume, force: true });
     return ctx;
   } catch (e) {
     return null;
   }
 }
 
-function playTick({ style = "wood", volume = 0.35 } = {}) {
+function playTick({ style = "wood", volume = 0.35, force = false } = {}) {
   const ctx = _audioCtx;
-  if (!ctx || ctx.state !== "running") return;
+  if (!ctx || ctx.state === "closed") return;
+  if (!force && ctx.state !== "running") return;
+  if (ctx.state === "suspended") ctx.resume();
   const t = ctx.currentTime;
 
   const dur = 0.045;
@@ -308,12 +319,26 @@ function App() {
     const begin = () => {
       if (began) return;
       began = true;
+      let tickStyle = DEFAULTS.tickStyle;
+      let volume = DEFAULTS.volume;
+      try {
+        const raw = localStorage.getItem("nowclock:v1");
+        if (raw) {
+          const saved = JSON.parse(raw);
+          if (saved.tickStyle) tickStyle = saved.tickStyle;
+          if (saved.volume != null) volume = saved.volume;
+        }
+      } catch (e) {}
+      unlockAudio({ style: tickStyle, volume });
       veil.setAttribute("data-hidden", "true");
       setStarted(true);
-      unlockAudio().catch(() => {});
     };
+    btn.addEventListener("touchend", begin, { passive: true });
     btn.addEventListener("click", begin);
-    return () => btn.removeEventListener("click", begin);
+    return () => {
+      btn.removeEventListener("touchend", begin);
+      btn.removeEventListener("click", begin);
+    };
   }, []);
 
   const handStyle = { transform: `rotate(${handDeg}deg)` };
