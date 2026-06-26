@@ -172,25 +172,19 @@ function Ring({ count = 60, word = "NOW" }) {
 
 // ─── Quartz second hand (cumulative degrees → smooth 59→0) ────────────────────
 function useQuartzSecond(onTick, paused) {
-  const [deg, setDeg] = useState(() => new Date().getSeconds() * 6);
+  const [deg, setDeg] = useState(0);
   const cbRef = useRef(onTick);
   cbRef.current = onTick;
 
   useEffect(() => {
     if (paused) return;
     let timer;
-    setDeg((d) => {
-      const turns = Math.floor(d / 360);
-      return turns * 360 + new Date().getSeconds() * 6;
-    });
     const step = () => {
       setDeg((d) => d + 6);
-      if (cbRef.current) cbRef.current(new Date().getSeconds());
-      const ms = new Date().getMilliseconds();
-      timer = setTimeout(step, 1000 - ms + 2);
+      if (cbRef.current) cbRef.current();
+      timer = setTimeout(step, 1000);
     };
-    const ms = new Date().getMilliseconds();
-    timer = setTimeout(step, 1000 - ms + 2);
+    timer = setTimeout(step, 1000);
     return () => clearTimeout(timer);
   }, [paused]);
 
