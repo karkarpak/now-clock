@@ -65,11 +65,15 @@ function ensureAudio() {
 }
 
 async function unlockAudio({ style = "wood", volume = 0.001 } = {}) {
-  const ctx = ensureAudio();
-  if (!ctx) return null;
-  if (ctx.state === "suspended") await ctx.resume();
-  playTick({ style, volume });
-  return ctx;
+  try {
+    const ctx = ensureAudio();
+    if (!ctx) return null;
+    if (ctx.state === "suspended") await ctx.resume();
+    playTick({ style, volume });
+    return ctx;
+  } catch (e) {
+    return null;
+  }
 }
 
 function playTick({ style = "wood", volume = 0.35 } = {}) {
@@ -301,19 +305,15 @@ function App() {
     const btn = document.getElementById("start");
     const veil = document.getElementById("veil");
     let began = false;
-    const begin = async () => {
+    const begin = () => {
       if (began) return;
       began = true;
-      await unlockAudio();
       veil.setAttribute("data-hidden", "true");
       setStarted(true);
+      unlockAudio().catch(() => {});
     };
-    btn.addEventListener("pointerdown", begin);
     btn.addEventListener("click", begin);
-    return () => {
-      btn.removeEventListener("pointerdown", begin);
-      btn.removeEventListener("click", begin);
-    };
+    return () => btn.removeEventListener("click", begin);
   }, []);
 
   const handStyle = { transform: `rotate(${handDeg}deg)` };
