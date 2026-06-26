@@ -65,7 +65,7 @@ function ensureAudio() {
 }
 
 // Must run synchronously inside a user gesture (iOS Safari blocks async unlock).
-function unlockAudio({ style = "wood", volume = 0.35 } = {}) {
+function unlockAudio() {
   try {
     const ctx = ensureAudio();
     if (!ctx) return null;
@@ -77,19 +77,15 @@ function unlockAudio({ style = "wood", volume = 0.35 } = {}) {
     ping.start(0);
 
     if (ctx.state === "suspended") ctx.resume();
-
-    playTick({ style, volume, force: true });
     return ctx;
   } catch (e) {
     return null;
   }
 }
 
-function playTick({ style = "wood", volume = 0.35, force = false } = {}) {
+function playTick({ style = "wood", volume = 0.35 } = {}) {
   const ctx = _audioCtx;
-  if (!ctx || ctx.state === "closed") return;
-  if (!force && ctx.state !== "running") return;
-  if (ctx.state === "suspended") ctx.resume();
+  if (!ctx || ctx.state === "closed" || ctx.state !== "running") return;
   const t = ctx.currentTime;
 
   const dur = 0.045;
@@ -274,7 +270,7 @@ function SettingsSheet({ s, set, onClose }) {
           <span>Tick</span>
           <Toggle on={s.soundOn} onChange={(v) => {
             set("soundOn", v);
-            if (v) unlockAudio({ style: s.tickStyle, volume: s.volume });
+            if (v) unlockAudio();
           }} />
         </div>
         {s.soundOn && (
@@ -319,17 +315,7 @@ function App() {
     const begin = () => {
       if (began) return;
       began = true;
-      let tickStyle = DEFAULTS.tickStyle;
-      let volume = DEFAULTS.volume;
-      try {
-        const raw = localStorage.getItem("nowclock:v1");
-        if (raw) {
-          const saved = JSON.parse(raw);
-          if (saved.tickStyle) tickStyle = saved.tickStyle;
-          if (saved.volume != null) volume = saved.volume;
-        }
-      } catch (e) {}
-      unlockAudio({ style: tickStyle, volume });
+      unlockAudio();
       veil.setAttribute("data-hidden", "true");
       setStarted(true);
     };
