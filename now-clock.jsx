@@ -58,14 +58,23 @@ let _audioCtx = null;
 function ensureAudio() {
   if (!_audioCtx) {
     const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
     _audioCtx = new AC();
   }
-  if (_audioCtx.state === "suspended") _audioCtx.resume();
   return _audioCtx;
 }
 
-function playTick({ style = "wood", volume = 0.35 } = {}) {
+async function unlockAudio({ style = "wood", volume = 0.001 } = {}) {
   const ctx = ensureAudio();
+  if (!ctx) return null;
+  if (ctx.state === "suspended") await ctx.resume();
+  playTick({ style, volume });
+  return ctx;
+}
+
+function playTick({ style = "wood", volume = 0.35 } = {}) {
+  const ctx = _audioCtx;
+  if (!ctx || ctx.state !== "running") return;
   const t = ctx.currentTime;
 
   const dur = 0.045;
@@ -248,7 +257,10 @@ function SettingsSheet({ s, set, onClose }) {
         <div className="twk-sect">Sound</div>
         <div className="twk-row twk-row-h">
           <span>Tick</span>
-          <Toggle on={s.soundOn} onChange={(v) => set("soundOn", v)} />
+          <Toggle on={s.soundOn} onChange={(v) => {
+            set("soundOn", v);
+            if (v) unlockAudio({ style: s.tickStyle, volume: s.volume });
+          }} />
         </div>
         {s.soundOn && (
           <React.Fragment>
@@ -288,13 +300,20 @@ function App() {
   useEffect(() => {
     const btn = document.getElementById("start");
     const veil = document.getElementById("veil");
-    const begin = () => {
-      ensureAudio();
+    let began = false;
+    const begin = async () => {
+      if (began) return;
+      began = true;
+      await unlockAudio();
       veil.setAttribute("data-hidden", "true");
       setStarted(true);
     };
+    btn.addEventListener("pointerdown", begin);
     btn.addEventListener("click", begin);
-    return () => btn.removeEventListener("click", begin);
+    return () => {
+      btn.removeEventListener("pointerdown", begin);
+      btn.removeEventListener("click", begin);
+    };
   }, []);
 
   const handStyle = { transform: `rotate(${handDeg}deg)` };
